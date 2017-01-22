@@ -26,8 +26,14 @@ namespace TeseraGamesLoader
                         .Aggregate((w, s) => w + ", " + s)
                  );
 
-            var resolvedWishlist = new Dictionary<string, Dictionary<string, string>>();
+            var necessaryGameData =
+                users.SelectMany(user => user.WantsPlayIDs.Where(gameId => gamesWithOwners.ContainsKey(gameId)))
+                    .Distinct()
+                    .AsParallel().WithDegreeOfParallelism(16)
+                    .Select(gameId=>gameRepository.GetById(gameId))
+                    .ToList();
 
+            var resolvedWishlist = new Dictionary<string, Dictionary<string, string>>();
             foreach (var user in users)
             {
                 var wantedGamesWithOwners = new Dictionary<string, string>();

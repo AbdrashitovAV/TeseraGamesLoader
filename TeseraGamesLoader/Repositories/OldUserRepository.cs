@@ -55,7 +55,7 @@ namespace TeseraGamesLoader.Repositories
                     }
                 }
 
-                GetUserDataFromTesera(user, ref _parser);
+                GetUserDataFromTesera(user);
             }
         }
 

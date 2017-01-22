@@ -13,8 +13,9 @@ namespace TeseraGamesLoader.Repositories
     internal class GameRepository :BaseRepository
     {
         private readonly string _gamesDataFileName = "games.txt";
+        private object _saveGameLock = new object();
+        private object _addGameLock = new object();
         private List<Game> _allGames;
-
 
         public GameRepository()
         {
@@ -36,10 +37,15 @@ namespace TeseraGamesLoader.Repositories
                 game = new Game()
                 {
                     GameId = gameId,
-                    GameName = GetGameNameFromId(gameId, _parser),
+                    GameName = GetGameNameFromId(gameId),
                     OwnedBy = new List<string>(),
                     UpdateDate = DateTime.Today
                 };
+
+                lock (_addGameLock)
+                {
+                    _allGames.Add(game);
+                }
 
                 SaveGamesDataInFile();
             }
@@ -47,7 +53,7 @@ namespace TeseraGamesLoader.Repositories
             {
                 if (game.UpdateDate <= DateTime.Today.AddDays(-4))
                 {
-                    game.GameName = GetGameNameFromId(gameId, _parser);
+                    game.GameName = GetGameNameFromId(gameId);
                     game.UpdateDate = DateTime.Today;
                 }
 
@@ -69,7 +75,7 @@ namespace TeseraGamesLoader.Repositories
             return new List<Game>();
         }
 
-        private string GetGameNameFromId(string gameId, HtmlParser parser)
+        private string GetGameNameFromId(string gameId)
         {
             Console.WriteLine($"Загружам данные для игры {gameId}");
             var connectionString = $"http://tesera.ru/game/{gameId}/";
@@ -77,9 +83,14 @@ namespace TeseraGamesLoader.Repositories
             try
             {
                 var gameData = GetData(connectionString);
-                var document = parser.Parse(gameData);
-                var element =
-                    document.All.Single(x => x.LocalName == "h1" && x.Attributes.Any(t => t.Name == "id" && t.Value == "game_title"));
+                IHtmlDocument document;
+
+                lock (_parserLock)
+                {
+                    document= _parser.Parse(gameData);
+                }
+
+                var element = document.All.Single(x => x.LocalName == "h1" && x.Attributes.Any(t => t.Name == "id" && t.Value == "game_title"));
                 var spanElement = element.FirstElementChild as IHtmlSpanElement;
                 var gameName = spanElement.TextContent;
 
@@ -97,9 +108,12 @@ namespace TeseraGamesLoader.Repositories
 
         private void SaveGamesDataInFile()
         {
-            var fileText = JsonConvert.SerializeObject(_allGames.ToList().OrderBy(x => x.GameName), Formatting.Indented);
+            lock (_saveGameLock)
+            {
+                var fileText = JsonConvert.SerializeObject(_allGames.ToList().OrderBy(x => x.GameName), Formatting.Indented);
 
-            File.WriteAllText(_gamesDataFileName, fileText, Encoding.UTF8);
+                File.WriteAllText(_gamesDataFileName, fileText, Encoding.UTF8);
+            }
         }
     }
 }

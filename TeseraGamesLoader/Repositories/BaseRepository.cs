@@ -7,6 +7,7 @@ namespace TeseraGamesLoader.Repositories
 {
     internal abstract class BaseRepository
     {
+        protected object _parserLock = new object();
         protected HtmlParser _parser;
 
         protected BaseRepository()

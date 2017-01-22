@@ -13,11 +13,11 @@ namespace TeseraGamesLoader.Repositories
         {
             var usersToProcess = LoadUsersToProcess("user.csv");
 
-            foreach (var user in usersToProcess)
-            {
-                GetUserDataFromTesera(user, ref _parser);
-                _users.Add(user);
-            }
+            usersToProcess
+                .AsParallel().WithDegreeOfParallelism(8)
+                .ForAll(GetUserDataFromTesera);
+
+            _users.AddRange(usersToProcess);
         }
 
         public List<User> GetAll()
